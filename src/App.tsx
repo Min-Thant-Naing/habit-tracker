@@ -288,10 +288,19 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [deletedHabits, setDeletedHabits] = useState<Habit[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchHabits();
+    const savedDeleted = localStorage.getItem('deleted_habits');
+    if (savedDeleted) {
+      try {
+        setDeletedHabits(JSON.parse(savedDeleted));
+      } catch (e) {
+        console.error("Error parsing deleted habits", e);
+      }
+    }
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => setDark(e.matches);
     mq.addEventListener("change", handler);
@@ -300,6 +309,10 @@ export default function App() {
       mq.removeEventListener("change", handler);
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('deleted_habits', JSON.stringify(deletedHabits));
+  }, [deletedHabits]);
 
   useEffect(() => {
     const baseColor = dark ? "#0d1117" : "#fbfaf7";
@@ -383,8 +396,36 @@ export default function App() {
   }
 
   async function deleteHabit(id: string) {
+    const habitToDelete = habits.find(h => h.id === id);
+    if (!habitToDelete) return;
+
     const { error } = await supabase.from('habits').delete().eq('id', id);
-    if (!error) setHabits(habits.filter(h => h.id !== id));
+    if (!error) {
+      setHabits(habits.filter(h => h.id !== id));
+      setDeletedHabits(prev => [habitToDelete, ...prev].slice(0, 10)); // Keep last 10
+    }
+  }
+
+  async function restoreHabit(habit: Habit) {
+    try {
+      const { data, error } = await supabase.from('habits').insert([{ 
+        name: habit.name, 
+        completions: habit.completions 
+      }]).select();
+      
+      if (error) throw error;
+      if (data) {
+        setHabits([...habits, data[0]]);
+        setDeletedHabits(prev => prev.filter(h => h.id !== habit.id));
+      }
+    } catch (e: any) {
+      console.error("Error restoring habit:", e);
+      setError("Failed to restore habit: " + e.message);
+    }
+  }
+
+  async function permanentlyDeleteHabit(id: string) {
+    setDeletedHabits(prev => prev.filter(h => h.id !== id));
   }
 
   async function updateHabitName(id: string, newName: string) {
@@ -757,6 +798,58 @@ export default function App() {
                   ))}
                   {habits.length === 0 && <div style={{ padding: "12px 16px", color: subCol, fontSize: 14 }}>No habits to manage</div>}
                 </div>
+
+                {deletedHabits.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 13, color: subCol, textTransform: "uppercase", padding: "24px 16px 8px", fontWeight: 500 }}>Recovery</div>
+                    <div style={{ background: dark ? "#161b22" : "#fff", borderRadius: 12, overflow: "hidden", border: dark ? "1px solid #30363d" : "1px solid #e5e7eb" }}>
+                      {deletedHabits.map((h, i) => (
+                        <div 
+                          key={h.id} 
+                          style={{ 
+                            padding: "12px 16px", 
+                            display: "flex", 
+                            justifyContent: "space-between", 
+                            alignItems: "center",
+                            borderBottom: i === deletedHabits.length - 1 ? "none" : (dark ? "1px solid #30363d" : "1px solid #e5e7eb")
+                          }}
+                        >
+                          <span style={{ color: textCol, fontSize: 15, opacity: 0.7 }}>{h.name}</span>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button 
+                              onClick={() => restoreHabit(h)}
+                              style={{ 
+                                background: "#ff9500", 
+                                color: "#fff", 
+                                border: "none", 
+                                padding: "4px 12px", 
+                                borderRadius: 14, 
+                                fontSize: 12, 
+                                fontWeight: 600, 
+                                cursor: "pointer" 
+                              }}
+                            >
+                              Restore
+                            </button>
+                            <button 
+                              onClick={() => permanentlyDeleteHabit(h.id)}
+                              style={{ 
+                                background: "none", 
+                                color: "#ff3b30", 
+                                border: "none", 
+                                padding: "4px 8px", 
+                                fontSize: 12, 
+                                cursor: "pointer" 
+                              }}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </>
