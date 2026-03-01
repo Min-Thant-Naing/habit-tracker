@@ -579,18 +579,18 @@ export default function App() {
             layout
             style={{
               pointerEvents: "auto",
-              width: "100%",
-              maxWidth: "450px",
+              width: "calc(100% - 40px)",
+              maxWidth: "420px",
               display: "flex",
               alignItems: "center",
               gap: "12px",
-              padding: "12px 24px",
-              borderRadius: "32px",
-              background: dark ? "rgba(13, 17, 23, 0.9)" : "rgba(255, 255, 255, 0.95)",
-              backdropFilter: "blur(20px) saturate(180%)",
-              WebkitBackdropFilter: "blur(20px) saturate(180%)",
-              border: dark ? "1px solid #30363d" : "1px solid #e5e7eb",
-              boxShadow: dark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 32px rgba(0,0,0,0.15)",
+              padding: "14px 24px",
+              borderRadius: "35px",
+              background: dark ? "rgba(28, 28, 30, 0.65)" : "rgba(255, 255, 255, 0.75)",
+              backdropFilter: "blur(30px) saturate(180%)",
+              WebkitBackdropFilter: "blur(30px) saturate(180%)",
+              border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
+              boxShadow: dark ? "0 12px 48px rgba(0,0,0,0.4)" : "0 12px 48px rgba(0,0,0,0.1)",
               overflow: "hidden",
               minHeight: "56px"
             }}
@@ -599,15 +599,16 @@ export default function App() {
               {showSuccess ? (
                 <motion.div
                   key="success"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
                   style={{ 
                     flex: 1, 
                     textAlign: "center", 
                     color: "#34c759", 
                     fontWeight: 600,
-                    fontSize: "16px"
+                    fontSize: "17px",
+                    letterSpacing: "-0.01em"
                   }}
                 >
                   Habit added!
@@ -634,7 +635,9 @@ export default function App() {
                     color: textCol, 
                     outline: "none",
                     width: "100%",
-                    fontWeight: 500
+                    fontWeight: 400,
+                    textAlign: "center",
+                    letterSpacing: "-0.02em"
                   }}
                 />
               )}
