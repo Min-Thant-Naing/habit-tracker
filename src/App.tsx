@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { Settings, X, Plus, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-
-// --- PASTE YOUR ACTUAL KEYS HERE ---
-const SUPABASE_URL = "https://lrpcrhhlfjkepnsfdamy.supabase.co"; 
-const SUPABASE_KEY = "sb_publishable_kz6i62zm_68PD714_sMlsg_5n2QFZgs";
-// ------------------------------------
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+import { supabase } from "./supabaseClient";
 
 interface Habit {
   id: string;
@@ -227,6 +220,7 @@ export default function App() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -272,16 +266,21 @@ export default function App() {
   }, [dark, isSettingsOpen]);
 
   async function fetchHabits() {
+    setLoading(true);
+    setError(null);
     try {
-      const { data, error } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('habits')
         .select('*')
         .order('inserted_at', { ascending: true });
       
-      if (error) throw error;
+      if (supabaseError) throw supabaseError;
       setHabits(data || []);
-    } catch (error: any) {
-      console.error("Error fetching habits:", error.message);
+    } catch (err: any) {
+      console.error("Error fetching habits:", err);
+      setError(err.message === "Failed to fetch" 
+        ? "Network error: Could not connect to Supabase. Please check your internet connection and Supabase URL." 
+        : `Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -292,14 +291,19 @@ export default function App() {
     if (!name || isAdding) return;
     
     setIsAdding(true);
+    setError(null);
     try {
-      const { data, error } = await supabase.from('habits').insert([{ name, completions: {} }]).select();
-      if (!error && data) {
+      const { data, error: supabaseError } = await supabase.from('habits').insert([{ name, completions: {} }]).select();
+      if (supabaseError) throw supabaseError;
+      if (data) {
         setHabits([...habits, data[0]]);
         setInput("");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setError(e.message || "Failed to add habit. Check your Supabase connection.");
+      // Clear error after 3 seconds
+      setTimeout(() => setError(null), 3000);
     } finally {
       setIsAdding(false);
     }
@@ -332,12 +336,34 @@ export default function App() {
       minHeight: "100vh", 
       color: textCol, 
       display: "flex", 
+      flexDirection: "column",
       alignItems: "center", 
       justifyContent: "center",
-      fontSize: "15px",
-      fontWeight: 500
+      gap: "20px",
+      padding: "20px",
+      textAlign: "center"
     }}>
-      Loading habit tracker app... 🌱
+      <div style={{ fontSize: "15px", fontWeight: 500 }}>Loading habit tracker app... 🌱</div>
+      {error && (
+        <div style={{ maxWidth: "400px" }}>
+          <div style={{ color: "#ff3b30", fontSize: "13px", marginBottom: "16px" }}>{error}</div>
+          <button 
+            onClick={fetchHabits}
+            style={{
+              background: "#ff9500",
+              color: "#fff",
+              border: "none",
+              padding: "8px 20px",
+              borderRadius: "20px",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: "pointer"
+            }}
+          >
+            Retry Connection
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -393,10 +419,33 @@ export default function App() {
         right: 0,
         zIndex: 100,
         display: "flex",
-        justifyContent: "center",
+        flexDirection: "column",
+        alignItems: "center",
         padding: "0 20px",
         pointerEvents: "none"
       }}>
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              style={{
+                background: "#ff3b30",
+                color: "#fff",
+                padding: "8px 16px",
+                borderRadius: "12px",
+                fontSize: "13px",
+                fontWeight: 600,
+                marginBottom: "12px",
+                boxShadow: "0 4px 12px rgba(255, 59, 48, 0.3)",
+                pointerEvents: "auto"
+              }}
+            >
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div style={{
           pointerEvents: "auto",
           width: "100%",
