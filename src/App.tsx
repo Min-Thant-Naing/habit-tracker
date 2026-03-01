@@ -287,6 +287,7 @@ export default function App() {
   const [input, setInput] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     fetchHabits();
@@ -589,10 +590,15 @@ export default function App() {
               background: dark ? "rgba(28, 28, 30, 0.65)" : "rgba(255, 255, 255, 0.75)",
               backdropFilter: "blur(30px) saturate(180%)",
               WebkitBackdropFilter: "blur(30px) saturate(180%)",
-              border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)",
-              boxShadow: dark ? "0 12px 48px rgba(0,0,0,0.4)" : "0 12px 48px rgba(0,0,0,0.1)",
+              border: isFocused 
+                ? "1.5px solid #ff9500" 
+                : (dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)"),
+              boxShadow: isFocused
+                ? (dark ? "0 0 0 4px rgba(255, 149, 0, 0.15), 0 12px 48px rgba(0,0,0,0.4)" : "0 0 0 4px rgba(255, 149, 0, 0.1), 0 12px 48px rgba(0,0,0,0.1)")
+                : (dark ? "0 12px 48px rgba(0,0,0,0.4)" : "0 12px 48px rgba(0,0,0,0.1)"),
               overflow: "hidden",
-              minHeight: "56px"
+              minHeight: "56px",
+              transition: "border 0.2s ease, box-shadow 0.2s ease"
             }}
           >
             <AnimatePresence mode="wait">
@@ -621,6 +627,8 @@ export default function App() {
                   exit={{ opacity: 0 }}
                   value={input}
                   onChange={e => setInput(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
                   onKeyDown={e => {
                     if (e.key === "Enter") {
                       addHabit();
