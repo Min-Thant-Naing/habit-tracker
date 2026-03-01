@@ -605,7 +605,7 @@ export default function App() {
                   style={{ 
                     flex: 1, 
                     textAlign: "center", 
-                    color: "#34c759", 
+                    color: "#ff9500", 
                     fontWeight: 600,
                     fontSize: "17px",
                     letterSpacing: "-0.01em"
