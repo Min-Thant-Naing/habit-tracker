@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Settings, X, Plus, Loader2 } from "lucide-react";
+import { Settings, X, Plus, Loader2, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "./supabaseClient";
 
@@ -68,9 +68,10 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, onToggle, dark,
     const currentMonth = new Date().getMonth();
     const target = monthRefs.current[currentMonth];
     if (target && scrollRef.current) {
-      // Set scrollLeft directly to avoid vertical page scrolling
-      // We subtract a small amount (e.g., 10px) to give some breathing room
-      scrollRef.current.scrollLeft = target.offsetLeft - 10;
+      scrollRef.current.scrollTo({
+        left: target.offsetLeft,
+        behavior: "auto"
+      });
     }
   }, []);
 
@@ -94,73 +95,86 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, onToggle, dark,
         style={{ 
           display: "flex", 
           overflowX: "auto", 
-          gap: "40px", 
+          gap: "24px", 
           paddingBottom: "10px",
           scrollbarWidth: "none", 
           msOverflowStyle: "none",
-          justifyContent: "flex-start"
+          justifyContent: "flex-start",
+          scrollSnapType: "x mandatory",
+          scrollBehavior: "smooth"
         }} className="no-scrollbar">
         <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
 
         {months.map(m => {
-          const monthLabel = new Date(year, m).toLocaleString("default", { month: "short" });
+          const monthLabel = new Date(year, m).toLocaleString("default", { month: "long" });
           const grid = buildMonthGrid(year, m);
           
           return (
             <div 
               key={m} 
               ref={el => monthRefs.current[m] = el}
-              style={{ flex: "0 0 auto" }}
+              style={{ 
+                flex: "0 0 100%", 
+                scrollSnapAlign: "start",
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center"
+              }}
             >
-              <div style={{ fontSize: 13, color: sub, fontWeight: 600, marginBottom: "12px" }}>{monthLabel}</div>
-              <div style={{ display: "flex", gap: "6px" }}>
-                
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginRight: "12px", width: "24px" }}>
-                  {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                    <div key={i} style={{ height: "24px", fontSize: "11px", color: sub, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{d}</div>
-                  ))}
-                </div>
-                
-                <div style={{ display: "flex", gap: "6px" }}>
-                  {grid.map((week, wi) => (
-                    <div key={wi} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {week.map((date, di) => {
-                        if (!date) return <div key={di} style={{ width: "28px", height: "24px" }} />;
-                        const key = toKey(date);
-                        const isToday = key === toKey(today);
-                        const isFuture = date > today;
-                        const done = !!(completions && completions[key]);
-                        const bg = done ? "#ff9500" : (dark ? "#21262d" : "#ebedf0"); 
-                        
-                        return (
-                          <div
-                            key={key}
-                            onClick={() => { if (!isFuture) onToggle(habitId, key); }}
-                            onMouseEnter={e => setTip({ x: e.clientX, y: e.clientY, text: date.toLocaleDateString() })}
-                            onMouseLeave={() => setTip(null)}
-                            style={{
-                              width: "28px", height: "24px", borderRadius: "4px",
-                              background: bg,
-                              cursor: !isFuture ? "pointer" : "default",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              color: done ? "#fff" : (dark ? "#444c56" : "#9ca3af"),
-                              userSelect: "none",
-                              touchAction: "manipulation",
-                              opacity: isFuture ? 0.25 : 1,
-                              border: isToday ? `2px solid ${dark ? "#ffc107" : "#ff9500"}` : "none",
-                              boxSizing: "border-box"
-                            }}
-                          >
-                            {date.getDate()}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+              <div style={{ width: "100%", maxWidth: "320px" }}>
+                <div style={{ fontSize: 14, color: sub, fontWeight: 600, marginBottom: "16px", letterSpacing: "0.02em", textTransform: "uppercase" }}>{monthLabel}</div>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginRight: "12px", width: "28px" }}>
+                    {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                      <div key={i} style={{ height: "32px", fontSize: "11px", color: sub, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{d}</div>
+                    ))}
+                  </div>
+                  
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    {grid.map((week, wi) => (
+                      <div key={wi} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        {week.map((date, di) => {
+                          if (!date) return <div key={di} style={{ width: "36px", height: "32px" }} />;
+                          const key = toKey(date);
+                          const isToday = key === toKey(today);
+                          const isFuture = date > today;
+                          const done = !!(completions && completions[key]);
+                          const bg = done ? "#ff9500" : (dark ? "#21262d" : "#ebedf0"); 
+                          
+                          return (
+                            <motion.div
+                              key={key}
+                              whileTap={!isFuture ? { scale: 0.85 } : {}}
+                              onClick={() => { if (!isFuture) onToggle(habitId, key); }}
+                              onMouseEnter={e => setTip({ x: e.clientX, y: e.clientY, text: date.toLocaleDateString() })}
+                              onMouseLeave={() => setTip(null)}
+                              style={{
+                                width: "36px", height: "32px", borderRadius: "8px",
+                                background: bg,
+                                cursor: !isFuture ? "pointer" : "default",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "12px",
+                                fontWeight: 800,
+                                color: done ? "#fff" : (dark ? "#444c56" : "#9ca3af"),
+                                userSelect: "none",
+                                touchAction: "manipulation",
+                                opacity: isFuture ? 0.25 : 1,
+                                border: isToday ? `2px solid ${dark ? "#ffc107" : "#ff9500"}` : "none",
+                                boxSizing: "border-box",
+                                transition: "background 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+                              }}
+                            >
+                              {date.getDate()}
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -184,31 +198,77 @@ const SettingsHabitItem: React.FC<SettingsHabitItemProps> = ({ habit, onDelete, 
   const [confirming, setConfirming] = useState(false);
   
   return (
-    <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: isLast ? "none" : (dark ? "1px solid #30363d" : "1px solid #e5e7eb") }}>
-      <span style={{ color: textCol, fontSize: 16 }}>{habit.name}</span>
-      {!confirming ? (
-        <button 
-          onClick={() => setConfirming(true)}
-          style={{ color: "#ff3b30", background: "none", border: "none", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
-        >
-          Delete
-        </button>
-      ) : (
-        <div style={{ display: "flex", gap: 12 }}>
-          <button 
-            onClick={() => setConfirming(false)}
-            style={{ color: subCol, background: "none", border: "none", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={() => onDelete(habit.id)}
-            style={{ color: "#ff3b30", background: "none", border: "none", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-          >
-            Confirm?
-          </button>
-        </div>
-      )}
+    <div style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: isLast ? "none" : (dark ? "1px solid #30363d" : "1px solid #e5e7eb") }}>
+      <span style={{ color: textCol, fontSize: 16, fontWeight: 500 }}>{habit.name}</span>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <AnimatePresence mode="wait">
+          {!confirming ? (
+            <motion.button 
+              key="delete"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onClick={() => setConfirming(true)}
+              style={{ 
+                color: "#ff3b30", 
+                background: dark ? "rgba(255, 59, 48, 0.1)" : "rgba(255, 59, 48, 0.05)", 
+                border: "none", 
+                padding: "6px 10px",
+                borderRadius: "8px",
+                fontSize: 13, 
+                fontWeight: 600, 
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <Trash2 size={14} />
+              Delete
+            </motion.button>
+          ) : (
+            <motion.div 
+              key="confirm"
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              style={{ display: "flex", gap: 8 }}
+            >
+              <button 
+                onClick={() => setConfirming(false)}
+                style={{ 
+                  color: subCol, 
+                  background: dark ? "#21262d" : "#f3f4f6", 
+                  border: "none", 
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  fontSize: 13, 
+                  fontWeight: 600, 
+                  cursor: "pointer" 
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => onDelete(habit.id)}
+                style={{ 
+                  color: "#fff", 
+                  background: "#ff3b30", 
+                  border: "none", 
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  fontSize: 13, 
+                  fontWeight: 600, 
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(255, 59, 48, 0.3)"
+                }}
+              >
+                Confirm
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
@@ -220,6 +280,9 @@ export default function App() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -229,7 +292,18 @@ export default function App() {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => setDark(e.matches);
     mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+
+    const handleScroll = () => {
+      if (window.scrollY > 50 && habits.length > 0) {
+        setIsExpanded(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      mq.removeEventListener("change", handler);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -290,6 +364,7 @@ export default function App() {
     const name = input.trim();
     if (!name || isAdding) return;
     
+    setIsExpanded(false); // Close immediately for better UX
     setIsAdding(true);
     setError(null);
     try {
@@ -312,6 +387,27 @@ export default function App() {
   async function deleteHabit(id: string) {
     const { error } = await supabase.from('habits').delete().eq('id', id);
     if (!error) setHabits(habits.filter(h => h.id !== id));
+  }
+
+  async function updateHabitName(id: string, newName: string) {
+    if (!newName.trim()) {
+      setEditingHabitId(null);
+      return;
+    }
+    try {
+      const { error: supabaseError } = await supabase
+        .from('habits')
+        .update({ name: newName.trim() })
+        .eq('id', id);
+      if (supabaseError) throw supabaseError;
+      setHabits(habits.map(h => h.id === id ? { ...h, name: newName.trim() } : h));
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || "Failed to update habit name.");
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setEditingHabitId(null);
+    }
   }
 
   async function toggleDay(id: string, key: string) {
@@ -389,8 +485,43 @@ export default function App() {
             
             {/* Card Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-              <div>
-                <div style={{ fontSize: "17px", fontWeight: "600", color: textCol }}>{h.name}</div>
+              <div style={{ flex: 1 }}>
+                {editingHabitId === h.id ? (
+                  <input
+                    autoFocus
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    onBlur={() => updateHabitName(h.id, editValue)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") updateHabitName(h.id, editValue);
+                      if (e.key === "Escape") setEditingHabitId(null);
+                    }}
+                    style={{
+                      fontSize: "17px",
+                      fontWeight: "600",
+                      color: textCol,
+                      background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+                      border: "none",
+                      borderRadius: "6px",
+                      outline: "none",
+                      padding: "4px 8px",
+                      marginLeft: "-8px",
+                      width: "100%",
+                      maxWidth: "300px"
+                    }}
+                  />
+                ) : (
+                  <div 
+                    onDoubleClick={() => {
+                      setEditingHabitId(h.id);
+                      setEditValue(h.name);
+                    }}
+                    style={{ fontSize: "17px", fontWeight: "600", color: textCol, cursor: "pointer", userSelect: "none" }}
+                    title="Double click to edit"
+                  >
+                    {h.name}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -420,7 +551,7 @@ export default function App() {
         zIndex: 100,
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
+        alignItems: "flex-end", // Align to right
         padding: "0 20px",
         pointerEvents: "none"
       }}>
@@ -439,63 +570,115 @@ export default function App() {
                 fontWeight: 600,
                 marginBottom: "12px",
                 boxShadow: "0 4px 12px rgba(255, 59, 48, 0.3)",
-                pointerEvents: "auto"
+                pointerEvents: "auto",
+                alignSelf: "center" // Keep error centered
               }}
             >
               {error}
             </motion.div>
           )}
         </AnimatePresence>
-        <div style={{
-          pointerEvents: "auto",
-          width: "100%",
-          maxWidth: "450px",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          padding: "8px 8px 8px 20px",
-          background: dark ? "rgba(13, 17, 23, 0.85)" : "rgba(255, 255, 255, 0.9)",
-          backdropFilter: "blur(20px) saturate(180%)",
-          WebkitBackdropFilter: "blur(20px) saturate(180%)",
-          borderRadius: "32px",
-          border: dark ? "1px solid #30363d" : "1px solid #e5e7eb",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-        }}>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && addHabit()}
-            placeholder="New habit..."
-            style={{ flex: 1, background: "transparent", border: "none", fontSize: "17px", color: textCol, outline: "none" }}
-          />
-          <motion.button 
-            onClick={addHabit} 
-            disabled={isAdding}
-            whileHover={isAdding ? {} : { scale: 1.05 }}
-            whileTap={isAdding ? {} : { scale: 0.92 }}
+
+        {/* Floating Add Habit Bar */}
+        <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+          <motion.div 
+            layout
+            animate={{
+              width: isExpanded ? "100%" : "56px",
+              padding: isExpanded ? "6px 6px 6px 18px" : "0px",
+              borderRadius: "28px",
+              marginLeft: isExpanded ? "0" : "auto",
+            }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
             style={{
-              width: "52px",
-              height: "52px",
-              background: "#ff9500",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "50%",
+              pointerEvents: "auto",
+              maxWidth: "450px",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              cursor: isAdding ? "default" : "pointer",
-              flexShrink: 0,
-              boxShadow: "0 4px 12px rgba(255, 149, 0, 0.4)",
-              opacity: isAdding ? 0.8 : 1,
-              transition: "background 0.2s ease, opacity 0.2s ease"
+              background: dark ? "rgba(28, 28, 30, 0.95)" : "rgba(255, 255, 255, 0.98)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.05)",
+              boxShadow: dark ? "0 10px 40px rgba(0,0,0,0.6)" : "0 10px 40px rgba(0,0,0,0.12)",
+              overflow: "hidden"
             }}
           >
-            {isAdding ? (
-              <Loader2 size={28} strokeWidth={3} className="animate-spin" />
-            ) : (
-              <Plus size={28} strokeWidth={3} />
-            )}
-          </motion.button>
+            <AnimatePresence initial={false} mode="wait">
+              {isExpanded && (
+                <motion.input
+                  key="input"
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.15 }}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") {
+                      addHabit();
+                      setIsExpanded(false);
+                    }
+                    if (e.key === "Escape") setIsExpanded(false);
+                  }}
+                  placeholder="New habit..."
+                  autoFocus
+                  style={{ 
+                    flex: 1, 
+                    background: "transparent", 
+                    border: "none", 
+                    fontSize: "16px", 
+                    color: textCol, 
+                    outline: "none",
+                    width: "100%",
+                    fontWeight: 500
+                  }}
+                />
+              )}
+            </AnimatePresence>
+
+            <motion.button 
+              layout
+              onClick={() => {
+                if (!isExpanded) {
+                  setIsExpanded(true);
+                } else if (input.trim()) {
+                  addHabit();
+                  setIsExpanded(false);
+                } else {
+                  setIsExpanded(false);
+                }
+              }} 
+              disabled={isAdding}
+              whileTap={{ scale: 0.9 }}
+              style={{
+                width: "56px",
+                height: "56px",
+                background: "#ff9500",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                flexShrink: 0,
+                boxShadow: "0 4px 12px rgba(255, 149, 0, 0.3)",
+              }}
+            >
+              {isAdding ? (
+                <Loader2 size={24} strokeWidth={3} className="animate-spin" />
+              ) : (
+                <Plus 
+                  size={26} 
+                  strokeWidth={2.5} 
+                  style={{ 
+                    transform: (isExpanded && !input.trim()) ? "rotate(45deg)" : "none",
+                    transition: "transform 0.2s ease"
+                  }}
+                />
+              )}
+            </motion.button>
+          </motion.div>
         </div>
       </div>
 
