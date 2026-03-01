@@ -434,7 +434,7 @@ export default function App() {
       padding: "20px",
       textAlign: "center"
     }}>
-      <div style={{ fontSize: "15px", fontWeight: 500 }}>Loading habit tracker app... 🌱</div>
+      <div style={{ fontSize: "15px", fontWeight: 500 }}>Loading habit tracker app... ✨</div>
       {error && (
         <div style={{ maxWidth: "400px" }}>
           <div style={{ color: "#ff3b30", fontSize: "13px", marginBottom: "16px" }}>{error}</div>
