@@ -286,6 +286,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     fetchHabits();
@@ -364,6 +365,8 @@ export default function App() {
       if (data) {
         setHabits([...habits, data[0]]);
         setInput("");
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
       }
     } catch (e: any) {
       console.error(e);
@@ -581,66 +584,65 @@ export default function App() {
               display: "flex",
               alignItems: "center",
               gap: "12px",
-              padding: "8px 8px 8px 20px",
+              padding: "12px 24px",
               borderRadius: "32px",
               background: dark ? "rgba(13, 17, 23, 0.9)" : "rgba(255, 255, 255, 0.95)",
               backdropFilter: "blur(20px) saturate(180%)",
               WebkitBackdropFilter: "blur(20px) saturate(180%)",
               border: dark ? "1px solid #30363d" : "1px solid #e5e7eb",
               boxShadow: dark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 32px rgba(0,0,0,0.15)",
-              overflow: "hidden"
+              overflow: "hidden",
+              minHeight: "56px"
             }}
           >
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  addHabit();
-                }
-              }}
-              placeholder="New habit..."
-              style={{ 
-                flex: 1, 
-                background: "transparent", 
-                border: "none", 
-                fontSize: "17px", 
-                color: textCol, 
-                outline: "none",
-                width: "100%",
-                fontWeight: 500
-              }}
-            />
-
-            <motion.button 
-              layout
-              onClick={addHabit} 
-              disabled={isAdding}
-              whileHover={isAdding ? {} : { scale: 1.05 }}
-              whileTap={isAdding ? {} : { scale: 0.92 }}
-              style={{
-                width: "52px",
-                height: "52px",
-                background: "#ff9500",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: isAdding ? "default" : "pointer",
-                flexShrink: 0,
-                boxShadow: "0 4px 12px rgba(255, 149, 0, 0.4)",
-                opacity: isAdding ? 0.8 : 1,
-                transition: "background 0.2s ease, opacity 0.2s ease"
-              }}
-            >
-              {isAdding ? (
-                <Loader2 size={28} strokeWidth={3} className="animate-spin" />
+            <AnimatePresence mode="wait">
+              {showSuccess ? (
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  style={{ 
+                    flex: 1, 
+                    textAlign: "center", 
+                    color: "#34c759", 
+                    fontWeight: 600,
+                    fontSize: "16px"
+                  }}
+                >
+                  Habit added!
+                </motion.div>
               ) : (
-                <Plus size={28} strokeWidth={3} />
+                <motion.input
+                  key="input"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") {
+                      addHabit();
+                    }
+                  }}
+                  placeholder="Type New Habit...."
+                  style={{ 
+                    flex: 1, 
+                    background: "transparent", 
+                    border: "none", 
+                    fontSize: "17px", 
+                    color: textCol, 
+                    outline: "none",
+                    width: "100%",
+                    fontWeight: 500
+                  }}
+                />
               )}
-            </motion.button>
+            </AnimatePresence>
+
+            {isAdding && (
+              <Loader2 size={20} strokeWidth={3} className="animate-spin" style={{ color: "#ff9500" }} />
+            )}
           </motion.div>
         </div>
       </div>
