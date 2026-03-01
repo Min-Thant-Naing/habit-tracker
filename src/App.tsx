@@ -288,6 +288,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchHabits();
@@ -366,6 +367,8 @@ export default function App() {
       if (data) {
         setHabits([...habits, data[0]]);
         setInput("");
+        setIsFocused(false);
+        inputRef.current?.blur();
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
       }
@@ -540,15 +543,18 @@ export default function App() {
       {/* Floating Safari-Style Bar */}
       <div style={{
         position: "fixed",
-        bottom: "40px",
+        bottom: isFocused ? "8px" : "32px",
         left: 0,
         right: 0,
         zIndex: 100,
         display: "flex",
         flexDirection: "column",
-        alignItems: "flex-end", // Align to right
+        alignItems: "center",
         padding: "0 20px",
-        pointerEvents: "none"
+        paddingBottom: "env(safe-area-inset-bottom)",
+        pointerEvents: "none",
+        transition: "bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        willChange: "bottom"
       }}>
         <AnimatePresence>
           {error && (
@@ -598,7 +604,7 @@ export default function App() {
                 : (dark ? "0 12px 48px rgba(0,0,0,0.4)" : "0 12px 48px rgba(0,0,0,0.1)"),
               overflow: "hidden",
               minHeight: "56px",
-              transition: "border 0.2s ease, box-shadow 0.2s ease"
+              transition: "border 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
             }}
           >
             <AnimatePresence mode="wait">
@@ -622,6 +628,7 @@ export default function App() {
               ) : (
                 <motion.input
                   key="input"
+                  ref={inputRef}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
