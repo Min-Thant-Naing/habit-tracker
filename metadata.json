@@ -1,0 +1,5 @@
+{
+  "name": "Habit Tracker",
+  "description": "A beautiful, GitHub-style habit tracker with heatmaps and streaks, powered by Supabase.",
+  "requestFramePermissions": []
+}

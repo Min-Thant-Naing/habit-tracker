@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    background-color: #f6f8fa; /* Previous light gray */
+  }
+  html.dark {
+    background-color: #0d1117;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: transparent; /* Let the App component handle it, or set it dynamically */
+  }
+
+  /* Hide scrollbars globally */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
