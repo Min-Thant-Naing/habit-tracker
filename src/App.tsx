@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Settings, X, Plus } from "lucide-react";
+import { Settings, X, Plus, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 // --- PASTE YOUR ACTUAL KEYS HERE ---
@@ -226,6 +226,7 @@ export default function App() {
   const [year, setYear] = useState(currentYear);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
   const [input, setInput] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -288,11 +289,19 @@ export default function App() {
 
   async function addHabit() {
     const name = input.trim();
-    if (!name) return;
-    const { data, error } = await supabase.from('habits').insert([{ name, completions: {} }]).select();
-    if (!error && data) {
-      setHabits([...habits, data[0]]);
-      setInput("");
+    if (!name || isAdding) return;
+    
+    setIsAdding(true);
+    try {
+      const { data, error } = await supabase.from('habits').insert([{ name, completions: {} }]).select();
+      if (!error && data) {
+        setHabits([...habits, data[0]]);
+        setInput("");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAdding(false);
     }
   }
 
@@ -410,8 +419,11 @@ export default function App() {
             placeholder="New habit..."
             style={{ flex: 1, background: "transparent", border: "none", fontSize: "17px", color: textCol, outline: "none" }}
           />
-          <button 
+          <motion.button 
             onClick={addHabit} 
+            disabled={isAdding}
+            whileHover={isAdding ? {} : { scale: 1.05 }}
+            whileTap={isAdding ? {} : { scale: 0.92 }}
             style={{
               width: "52px",
               height: "52px",
@@ -422,13 +434,19 @@ export default function App() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              cursor: "pointer",
+              cursor: isAdding ? "default" : "pointer",
               flexShrink: 0,
               boxShadow: "0 4px 12px rgba(255, 149, 0, 0.4)",
+              opacity: isAdding ? 0.8 : 1,
+              transition: "background 0.2s ease, opacity 0.2s ease"
             }}
           >
-            <Plus size={28} strokeWidth={3} />
-          </button>
+            {isAdding ? (
+              <Loader2 size={28} strokeWidth={3} className="animate-spin" />
+            ) : (
+              <Plus size={28} strokeWidth={3} />
+            )}
+          </motion.button>
         </div>
       </div>
 
