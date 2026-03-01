@@ -293,16 +293,8 @@ export default function App() {
     const handler = (e: MediaQueryListEvent) => setDark(e.matches);
     mq.addEventListener("change", handler);
 
-    const handleScroll = () => {
-      if (window.scrollY > 50 && habits.length > 0) {
-        setIsExpanded(false);
-      }
-    };
-    window.addEventListener("scroll", handleScroll);
-
     return () => {
       mq.removeEventListener("change", handler);
-      window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
@@ -364,7 +356,6 @@ export default function App() {
     const name = input.trim();
     if (!name || isAdding) return;
     
-    setIsExpanded(false); // Close immediately for better UX
     setIsAdding(true);
     setError(null);
     try {
@@ -579,80 +570,57 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Floating Add Habit Bar */}
+        {/* Floating Add Habit Bar - Safari Style (Always Open) */}
         <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
           <motion.div 
             layout
-            animate={{
-              width: isExpanded ? "100%" : "56px",
-              padding: isExpanded ? "6px 6px 6px 18px" : "0px",
-              borderRadius: "28px",
-              marginLeft: isExpanded ? "0" : "auto",
-            }}
-            transition={{ type: "spring", stiffness: 400, damping: 35 }}
             style={{
               pointerEvents: "auto",
+              width: "100%",
               maxWidth: "450px",
               display: "flex",
               alignItems: "center",
-              background: dark ? "rgba(28, 28, 30, 0.95)" : "rgba(255, 255, 255, 0.98)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-              border: dark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.05)",
-              boxShadow: dark ? "0 10px 40px rgba(0,0,0,0.6)" : "0 10px 40px rgba(0,0,0,0.12)",
+              gap: "12px",
+              padding: "8px 8px 8px 20px",
+              borderRadius: "32px",
+              background: dark ? "rgba(13, 17, 23, 0.9)" : "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(20px) saturate(180%)",
+              WebkitBackdropFilter: "blur(20px) saturate(180%)",
+              border: dark ? "1px solid #30363d" : "1px solid #e5e7eb",
+              boxShadow: dark ? "0 8px 32px rgba(0,0,0,0.5)" : "0 8px 32px rgba(0,0,0,0.15)",
               overflow: "hidden"
             }}
           >
-            <AnimatePresence initial={false} mode="wait">
-              {isExpanded && (
-                <motion.input
-                  key="input"
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.15 }}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") {
-                      addHabit();
-                      setIsExpanded(false);
-                    }
-                    if (e.key === "Escape") setIsExpanded(false);
-                  }}
-                  placeholder="New habit..."
-                  autoFocus
-                  style={{ 
-                    flex: 1, 
-                    background: "transparent", 
-                    border: "none", 
-                    fontSize: "16px", 
-                    color: textCol, 
-                    outline: "none",
-                    width: "100%",
-                    fontWeight: 500
-                  }}
-                />
-              )}
-            </AnimatePresence>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  addHabit();
+                }
+              }}
+              placeholder="New habit..."
+              style={{ 
+                flex: 1, 
+                background: "transparent", 
+                border: "none", 
+                fontSize: "17px", 
+                color: textCol, 
+                outline: "none",
+                width: "100%",
+                fontWeight: 500
+              }}
+            />
 
             <motion.button 
               layout
-              onClick={() => {
-                if (!isExpanded) {
-                  setIsExpanded(true);
-                } else if (input.trim()) {
-                  addHabit();
-                  setIsExpanded(false);
-                } else {
-                  setIsExpanded(false);
-                }
-              }} 
+              onClick={addHabit} 
               disabled={isAdding}
-              whileTap={{ scale: 0.9 }}
+              whileHover={isAdding ? {} : { scale: 1.05 }}
+              whileTap={isAdding ? {} : { scale: 0.92 }}
               style={{
-                width: "56px",
-                height: "56px",
+                width: "52px",
+                height: "52px",
                 background: "#ff9500",
                 color: "#ffffff",
                 border: "none",
@@ -660,22 +628,17 @@ export default function App() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: "pointer",
+                cursor: isAdding ? "default" : "pointer",
                 flexShrink: 0,
-                boxShadow: "0 4px 12px rgba(255, 149, 0, 0.3)",
+                boxShadow: "0 4px 12px rgba(255, 149, 0, 0.4)",
+                opacity: isAdding ? 0.8 : 1,
+                transition: "background 0.2s ease, opacity 0.2s ease"
               }}
             >
               {isAdding ? (
-                <Loader2 size={24} strokeWidth={3} className="animate-spin" />
+                <Loader2 size={28} strokeWidth={3} className="animate-spin" />
               ) : (
-                <Plus 
-                  size={26} 
-                  strokeWidth={2.5} 
-                  style={{ 
-                    transform: (isExpanded && !input.trim()) ? "rotate(45deg)" : "none",
-                    transition: "transform 0.2s ease"
-                  }}
-                />
+                <Plus size={28} strokeWidth={3} />
               )}
             </motion.button>
           </motion.div>
