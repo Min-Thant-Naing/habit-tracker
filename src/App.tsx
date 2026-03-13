@@ -65,25 +65,37 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, notes, colors, 
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const monthRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressTriggeredRef = useRef(false);
   const months = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const sub = dark ? "#8b949e" : "#9ca3af";
 
-  const handleDayInteraction = (key: string, date: Date, detail: number) => {
+  const handlePointerDown = (key: string, date: Date) => {
     if (date > today) return;
-    if (detail === 1) {
-      clickTimeoutRef.current = setTimeout(() => {
-        onDayClick(habitId, key, date);
-        clickTimeoutRef.current = null;
-      }, 200);
-    } else if (detail === 2) {
-      if (clickTimeoutRef.current) {
-        clearTimeout(clickTimeoutRef.current);
-        clickTimeoutRef.current = null;
-      }
+    isLongPressTriggeredRef.current = false;
+    longPressTimeoutRef.current = setTimeout(() => {
+      isLongPressTriggeredRef.current = true;
       onDayDoubleClick(habitId, key, date);
+    }, 500);
+  };
+
+  const handlePointerUp = (key: string, date: Date) => {
+    if (date > today) return;
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    if (!isLongPressTriggeredRef.current) {
+      onDayClick(habitId, key, date);
+    }
+  };
+
+  const handlePointerCancel = () => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
     }
   };
 
@@ -175,7 +187,11 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, notes, colors, 
                             <motion.div
                               key={key}
                               whileTap={!isFuture ? { scale: 0.85 } : {}}
-                              onClick={(e) => handleDayInteraction(key, date, e.detail)}
+                              onPointerDown={() => handlePointerDown(key, date)}
+                              onPointerUp={() => handlePointerUp(key, date)}
+                              onPointerCancel={handlePointerCancel}
+                              onPointerLeave={handlePointerCancel}
+                              onContextMenu={(e) => { e.preventDefault(); }}
                               onMouseEnter={e => setTip({ x: e.clientX, y: e.clientY, text: date.toLocaleDateString() })}
                               onMouseLeave={() => setTip(null)}
                               style={{
@@ -747,16 +763,17 @@ export default function App() {
               }}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, x: "-50%", y: "-40%" }}
-              animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
-              exit={{ opacity: 0, scale: 0.9, x: "-50%", y: "-40%" }}
+              initial={{ opacity: 0, scale: 0.9, x: "-50%", y: -20 }}
+              animate={{ opacity: 1, scale: 1, x: "-50%", y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, x: "-50%", y: -20 }}
               style={{
-                position: "fixed", top: "50%", left: "50%",
+                position: "fixed", top: "10%", left: "50%",
                 width: "90%", maxWidth: "400px",
                 background: dark ? "#1c1c1e" : "#fff",
                 borderRadius: "24px", padding: "24px",
                 zIndex: 1001, boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-                display: "flex", flexDirection: "column", gap: "20px"
+                display: "flex", flexDirection: "column", gap: "20px",
+                maxHeight: "80vh", overflowY: "auto"
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
