@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Settings, X, Plus, Loader2, Trash2 } from "lucide-react";
+import { Settings, X, Plus, Loader2, Trash2, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { supabase } from "./supabaseClient";
 
@@ -7,6 +7,8 @@ interface Habit {
   id: string;
   name: string;
   completions: Record<string, boolean>;
+  notes?: Record<string, string>;
+  colors?: Record<string, string>;
   inserted_at: string;
 }
 
@@ -50,19 +52,40 @@ function getStreak(completions: Record<string, boolean> | null): number {
 interface HeatmapProps {
   habitId: string;
   completions: Record<string, boolean> | null;
-  onToggle: (id: string, key: string) => Promise<void>;
+  notes: Record<string, string> | null;
+  colors: Record<string, string> | null;
+  onDayClick: (habitId: string, key: string, date: Date) => void;
+  onDayDoubleClick: (habitId: string, key: string, date: Date) => void;
   dark: boolean;
   year: number;
+  editingColor?: { dateKey: string, color: string } | null;
 }
 
-const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, onToggle, dark, year }) => {
+const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, notes, colors, onDayClick, onDayDoubleClick, dark, year, editingColor }) => {
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const monthRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const months = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const sub = dark ? "#8b949e" : "#9ca3af";
+
+  const handleDayInteraction = (key: string, date: Date, detail: number) => {
+    if (date > today) return;
+    if (detail === 1) {
+      clickTimeoutRef.current = setTimeout(() => {
+        onDayClick(habitId, key, date);
+        clickTimeoutRef.current = null;
+      }, 200);
+    } else if (detail === 2) {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      onDayDoubleClick(habitId, key, date);
+    }
+  };
 
   useEffect(() => {
     const currentMonth = new Date().getMonth();
@@ -95,13 +118,14 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, onToggle, dark,
         style={{ 
           display: "flex", 
           overflowX: "auto", 
-          gap: "24px", 
-          paddingBottom: "10px",
+          gap: "32px", 
+          paddingBottom: "16px",
           scrollbarWidth: "none", 
           msOverflowStyle: "none",
           justifyContent: "flex-start",
           scrollSnapType: "x mandatory",
-          scrollBehavior: "smooth"
+          scrollBehavior: "smooth",
+          width: "100%"
         }} className="no-scrollbar">
         <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
 
@@ -114,21 +138,22 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, onToggle, dark,
               key={m} 
               ref={el => monthRefs.current[m] = el}
               style={{ 
-                flex: "0 0 100%", 
+                flex: "0 0 auto", 
                 scrollSnapAlign: "start",
                 boxSizing: "border-box",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center"
+                alignItems: "center",
+                minWidth: "min(360px, 100%)"
               }}
             >
-              <div style={{ width: "100%", maxWidth: "320px" }}>
+              <div style={{ width: "100%", maxWidth: "360px", padding: "0 4px" }}>
                 <div style={{ fontSize: 14, color: sub, fontWeight: 600, marginBottom: "16px", letterSpacing: "0.02em", textTransform: "uppercase" }}>{monthLabel}</div>
                 <div style={{ display: "flex", gap: "10px" }}>
                   
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginRight: "12px", width: "28px" }}>
                     {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                      <div key={i} style={{ height: "32px", fontSize: "11px", color: sub, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{d}</div>
+                      <div key={i} style={{ height: "42px", fontSize: "11px", color: sub, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{d}</div>
                     ))}
                   </div>
                   
@@ -136,25 +161,29 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, onToggle, dark,
                     {grid.map((week, wi) => (
                       <div key={wi} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {week.map((date, di) => {
-                          if (!date) return <div key={di} style={{ width: "36px", height: "32px" }} />;
+                          if (!date) return <div key={di} style={{ width: "36px", height: "42px" }} />;
                           const key = toKey(date);
                           const isToday = key === toKey(today);
                           const isFuture = date > today;
                           const done = !!(completions && completions[key]);
-                          const bg = done ? "#ff9500" : (dark ? "#21262d" : "#ebedf0"); 
+                          const note = notes && notes[key];
+                          const isEditingThisDay = editingColor?.dateKey === key;
+                          const dayColor = isEditingThisDay ? editingColor.color : (colors && colors[key]);
+                          const bg = done ? (dayColor || "#ff9500") : (dark ? "#21262d" : "#ebedf0"); 
                           
                           return (
                             <motion.div
                               key={key}
                               whileTap={!isFuture ? { scale: 0.85 } : {}}
-                              onClick={() => { if (!isFuture) onToggle(habitId, key); }}
+                              onClick={(e) => handleDayInteraction(key, date, e.detail)}
                               onMouseEnter={e => setTip({ x: e.clientX, y: e.clientY, text: date.toLocaleDateString() })}
                               onMouseLeave={() => setTip(null)}
                               style={{
-                                width: "36px", height: "32px", borderRadius: "8px",
+                                width: "36px", height: "42px", borderRadius: "8px",
                                 background: bg,
                                 cursor: !isFuture ? "pointer" : "default",
                                 display: "flex",
+                                flexDirection: "column",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 fontSize: "12px",
@@ -165,10 +194,12 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, onToggle, dark,
                                 opacity: isFuture ? 0.25 : 1,
                                 border: isToday ? `2px solid ${dark ? "#ffc107" : "#ff9500"}` : "none",
                                 boxSizing: "border-box",
-                                transition: "background 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+                                transition: "background 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                                padding: "2px",
+                                position: "relative"
                               }}
                             >
-                              {date.getDate()}
+                              <span>{date.getDate()}</span>
                             </motion.div>
                           );
                         })}
@@ -289,18 +320,13 @@ export default function App() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [deletedHabits, setDeletedHabits] = useState<Habit[]>([]);
+  const [noteModal, setNoteModal] = useState<{ habitId: string, dateKey: string, date: Date } | null>(null);
+  const [noteInput, setNoteInput] = useState("");
+  const [colorInput, setColorInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchHabits();
-    const savedDeleted = localStorage.getItem('deleted_habits');
-    if (savedDeleted) {
-      try {
-        setDeletedHabits(JSON.parse(savedDeleted));
-      } catch (e) {
-        console.error("Error parsing deleted habits", e);
-      }
-    }
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => setDark(e.matches);
     mq.addEventListener("change", handler);
@@ -309,10 +335,6 @@ export default function App() {
       mq.removeEventListener("change", handler);
     };
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('deleted_habits', JSON.stringify(deletedHabits));
-  }, [deletedHabits]);
 
   useEffect(() => {
     const baseColor = dark ? "#0d1117" : "#fbfaf7";
@@ -358,6 +380,16 @@ export default function App() {
       
       if (supabaseError) throw supabaseError;
       setHabits(data || []);
+
+      const { data: deletedData, error: deletedError } = await supabase
+        .from('deleted_habits')
+        .select('*')
+        .order('inserted_at', { ascending: false })
+        .limit(10);
+      
+      if (!deletedError && deletedData) {
+        setDeletedHabits(deletedData);
+      }
     } catch (err: any) {
       console.error("Error fetching habits:", err);
       setError(err.message === "Failed to fetch" 
@@ -402,7 +434,19 @@ export default function App() {
     const { error } = await supabase.from('habits').delete().eq('id', id);
     if (!error) {
       setHabits(habits.filter(h => h.id !== id));
-      setDeletedHabits(prev => [habitToDelete, ...prev].slice(0, 10)); // Keep last 10
+      
+      const { data, error: insertError } = await supabase.from('deleted_habits').insert([{
+        name: habitToDelete.name,
+        completions: habitToDelete.completions,
+        notes: habitToDelete.notes || {},
+        colors: habitToDelete.colors || {}
+      }]).select();
+      
+      if (!insertError && data) {
+        setDeletedHabits(prev => [data[0], ...prev].slice(0, 10));
+      } else {
+        setDeletedHabits(prev => [habitToDelete, ...prev].slice(0, 10));
+      }
     }
   }
 
@@ -410,13 +454,21 @@ export default function App() {
     try {
       const { data, error } = await supabase.from('habits').insert([{ 
         name: habit.name, 
-        completions: habit.completions 
+        completions: habit.completions,
+        notes: habit.notes || {},
+        colors: habit.colors || {}
       }]).select();
       
       if (error) throw error;
       if (data) {
         setHabits([...habits, data[0]]);
-        setDeletedHabits(prev => prev.filter(h => h.id !== habit.id));
+        
+        const { error: deleteError } = await supabase.from('deleted_habits').delete().eq('id', habit.id);
+        if (!deleteError) {
+          setDeletedHabits(prev => prev.filter(h => h.id !== habit.id));
+        } else {
+          setDeletedHabits(prev => prev.filter(h => h.id !== habit.id));
+        }
       }
     } catch (e: any) {
       console.error("Error restoring habit:", e);
@@ -425,7 +477,12 @@ export default function App() {
   }
 
   async function permanentlyDeleteHabit(id: string) {
-    setDeletedHabits(prev => prev.filter(h => h.id !== id));
+    const { error } = await supabase.from('deleted_habits').delete().eq('id', id);
+    if (!error) {
+      setDeletedHabits(prev => prev.filter(h => h.id !== id));
+    } else {
+      setDeletedHabits(prev => prev.filter(h => h.id !== id));
+    }
   }
 
   async function updateHabitName(id: string, newName: string) {
@@ -458,6 +515,51 @@ export default function App() {
     const { error } = await supabase.from('habits').update({ completions: newCompletions }).eq('id', id);
     if (!error) {
       setHabits(habits.map(h => h.id === id ? { ...h, completions: newCompletions } : h));
+    }
+  }
+
+  function handleDayClick(habitId: string, key: string, date: Date) {
+    toggleDay(habitId, key);
+  }
+
+  function handleDayDoubleClick(habitId: string, key: string, date: Date) {
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+    setNoteModal({ habitId, dateKey: key, date });
+    setNoteInput(habit.notes?.[key] || "");
+    setColorInput(habit.colors?.[key] || "#ff9500");
+  }
+
+  async function saveNote() {
+    if (!noteModal) return;
+    const { habitId, dateKey } = noteModal;
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+
+    const newNotes = { ...(habit.notes || {}) };
+    if (noteInput.trim()) {
+      newNotes[dateKey] = noteInput.trim();
+    } else {
+      delete newNotes[dateKey];
+    }
+
+    const newColors = { ...(habit.colors || {}) };
+    if (colorInput && colorInput !== "#ff9500") {
+      newColors[dateKey] = colorInput;
+    } else {
+      delete newColors[dateKey];
+    }
+
+    const { error } = await supabase.from('habits').update({ notes: newNotes, colors: newColors }).eq('id', habitId);
+    if (!error) {
+      setHabits(habits.map(h => h.id === habitId ? { ...h, notes: newNotes, colors: newColors } : h));
+      setNoteModal(null);
+      setNoteInput("");
+      setColorInput("");
+    } else {
+      console.error("Error saving note/color:", error);
+      setError("Failed to save. Make sure 'notes' and 'colors' columns exist in Supabase.");
+      setTimeout(() => setError(null), 3000);
     }
   }
 
@@ -517,7 +619,7 @@ export default function App() {
       </div>
 
       {/* Habit List */}
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 16px 180px" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 16px 80px" }}>
         {habits.length === 0 && <div style={{ textAlign: "center", color: subCol, marginTop: 60, fontSize: 13 }}>No habits yet 🌱</div>}
         {habits.map((h: Habit, index: number) => (
           <div key={h.id} style={{ padding: "20px 0", marginBottom: "10px" }}>
@@ -564,7 +666,17 @@ export default function App() {
               </div>
             </div>
 
-            <Heatmap habitId={h.id} completions={h.completions} onToggle={toggleDay} dark={dark} year={year} />
+            <Heatmap 
+              habitId={h.id} 
+              completions={h.completions} 
+              notes={h.notes || null}
+              colors={h.colors || null}
+              onDayClick={handleDayClick} 
+              onDayDoubleClick={handleDayDoubleClick}
+              dark={dark} 
+              year={year} 
+              editingColor={noteModal?.habitId === h.id ? { dateKey: noteModal.dateKey, color: colorInput } : null}
+            />
             
             {/* Long centered horizontal line after habit - only if not last */}
             {index < habits.length - 1 && (
@@ -581,10 +693,10 @@ export default function App() {
         ))}
       </div>
 
-      {/* Floating Safari-Style Bar */}
+      {/* Floating Error Message */}
       <div style={{
         position: "fixed",
-        bottom: isFocused ? "8px" : "32px",
+        bottom: "32px",
         left: 0,
         right: 0,
         zIndex: 100,
@@ -594,8 +706,6 @@ export default function App() {
         padding: "0 20px",
         paddingBottom: "env(safe-area-inset-bottom)",
         pointerEvents: "none",
-        transition: "bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        willChange: "bottom"
       }}>
         <AnimatePresence>
           {error && (
@@ -620,90 +730,114 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Floating Add Habit Bar - Safari Style (Always Open) */}
-        <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-          <motion.div 
-            layout
-            style={{
-              pointerEvents: "auto",
-              width: "calc(100% - 40px)",
-              maxWidth: "420px",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "14px 24px",
-              borderRadius: "35px",
-              background: dark ? "rgba(28, 28, 30, 0.65)" : "rgba(255, 255, 255, 0.75)",
-              backdropFilter: "blur(30px) saturate(180%)",
-              WebkitBackdropFilter: "blur(30px) saturate(180%)",
-
-              boxShadow: isFocused
-                ? (dark ? "0 0 0 4px rgba(255, 149, 0, 0.15), 0 12px 48px rgba(0,0,0,0.4)" : "0 0 0 4px rgba(255, 149, 0, 0.1), 0 12px 48px rgba(0,0,0,0.1)")
-                : (dark ? "0 12px 48px rgba(0,0,0,0.4)" : "0 12px 48px rgba(0,0,0,0.1)"),
-              overflow: "hidden",
-              minHeight: "56px",
-              transition: "border 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
-            }}
-          >
-            <AnimatePresence mode="wait">
-              {showSuccess ? (
-                <motion.div
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  style={{ 
-                    flex: 1, 
-                    textAlign: "center", 
-                    color: "#ff9500", 
-                    fontWeight: 600,
-                    fontSize: "17px",
-                    letterSpacing: "-0.01em"
-                  }}
-                >
-                  Habit added!
-                </motion.div>
-              ) : (
-                <motion.input
-                  key="input"
-                  ref={inputRef}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") {
-                      addHabit();
-                    }
-                  }}
-                  placeholder="Type New Habit...."
-                  style={{ 
-                    flex: 1, 
-                    background: "transparent", 
-                    border: "none", 
-                    fontSize: "17px", 
-                    color: textCol, 
-                    outline: "none",
-                    width: "100%",
-                    fontWeight: 400,
-                    textAlign: "center",
-                    letterSpacing: "-0.02em"
-                  }}
-                />
-              )}
-            </AnimatePresence>
-
-            {isAdding && (
-              <Loader2 size={20} strokeWidth={3} className="animate-spin" style={{ color: "#ff9500" }} />
-            )}
-          </motion.div>
-        </div>
       </div>
 
+      {/* Note Modal */}
+      <AnimatePresence>
+        {noteModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setNoteModal(null)}
+              style={{
+                position: "fixed", top: 0, bottom: 0, left: 0, right: 0,
+                background: "rgba(0,0,0,0.6)", zIndex: 1000, backdropFilter: "blur(4px)"
+              }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, x: "-50%", y: "-40%" }}
+              animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
+              exit={{ opacity: 0, scale: 0.9, x: "-50%", y: "-40%" }}
+              style={{
+                position: "fixed", top: "50%", left: "50%",
+                width: "90%", maxWidth: "400px",
+                background: dark ? "#1c1c1e" : "#fff",
+                borderRadius: "24px", padding: "24px",
+                zIndex: 1001, boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+                display: "flex", flexDirection: "column", gap: "20px"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: "14px", color: subCol, fontWeight: 500 }}>{noteModal.date.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: textCol }}>{habits.find(h => h.id === noteModal.habitId)?.name}</div>
+                </div>
+                <button 
+                  onClick={() => setNoteModal(null)}
+                  style={{ background: "none", border: "none", color: subCol, cursor: "pointer" }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)", padding: "12px 16px", borderRadius: "16px" }}>
+                <span style={{ color: textCol, fontWeight: 600 }}>Mark as Finished</span>
+                <button 
+                  onClick={() => toggleDay(noteModal.habitId, noteModal.dateKey)}
+                  style={{
+                    width: "50px", height: "28px", borderRadius: "14px",
+                    background: habits.find(h => h.id === noteModal.habitId)?.completions?.[noteModal.dateKey] ? (colorInput || "#ff9500") : (dark ? "#3a3a3c" : "#d1d1d6"),
+                    position: "relative", border: "none", cursor: "pointer", transition: "background 0.3s"
+                  }}
+                >
+                  <motion.div 
+                    animate={{ x: habits.find(h => h.id === noteModal.habitId)?.completions?.[noteModal.dateKey] ? 24 : 2 }}
+                    style={{ width: "24px", height: "24px", borderRadius: "12px", background: "#fff", position: "absolute", top: 2, left: 0 }}
+                  />
+                </button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: subCol, marginLeft: "4px" }}>COLOR</label>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  {["#ff9500", "#ff3b30", "#34c759", "#007aff", "#af52de", "#ff2d55"].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setColorInput(c)}
+                      style={{
+                        width: "32px", height: "32px", borderRadius: "16px",
+                        background: c, border: "none", cursor: "pointer",
+                        boxShadow: colorInput === c ? `0 0 0 3px ${dark ? "#1c1c1e" : "#fff"}, 0 0 0 5px ${c}` : "none",
+                        transition: "box-shadow 0.2s"
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 600, color: subCol, marginLeft: "4px" }}>NOTE</label>
+                <textarea 
+                  autoFocus
+                  value={noteInput}
+                  onChange={e => setNoteInput(e.target.value)}
+                  placeholder="Add a note for this day..."
+                  style={{
+                    width: "100%", minHeight: "100px", borderRadius: "16px",
+                    background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+                    border: "none", padding: "16px", color: textCol, fontSize: "15px",
+                    outline: "none", resize: "none", fontFamily: "inherit"
+                  }}
+                />
+              </div>
+
+              <button 
+                onClick={saveNote}
+                style={{
+                  width: "100%", padding: "14px", borderRadius: "16px",
+                  background: "#ff9500", color: "#fff", border: "none",
+                  fontSize: "16px", fontWeight: 700, cursor: "pointer",
+                  boxShadow: "0 8px 24px rgba(255, 149, 0, 0.2)"
+                }}
+              >
+                Save Note
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       {/* Settings Bottom Sheet */}
       <AnimatePresence>
         {isSettingsOpen && (
@@ -762,7 +896,7 @@ export default function App() {
                       >
                         ‹
                       </button>
-                      <span style={{ color: textCol, fontWeight: 600, fontSize: 16 }}>{year}</span>
+                      <span style={{ color: textCol, fontWeight: 600, fontSize: 16, width: "40px", textAlign: "center" }}>{year}</span>
                       <button 
                         onClick={() => setYear(y => Math.min(y + 1, currentYear))} 
                         style={{ 
@@ -781,6 +915,49 @@ export default function App() {
                       </button>
                     </div>
                   </div>
+                </div>
+
+                <div style={{ fontSize: 13, color: subCol, textTransform: "uppercase", padding: "0 16px 8px", fontWeight: 500 }}>Add Habit</div>
+                <div style={{ background: dark ? "#161b22" : "#fff", borderRadius: 12, overflow: "hidden", marginBottom: 24, border: dark ? "1px solid #30363d" : "1px solid #e5e7eb", display: "flex", padding: "8px" }}>
+                  <input
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        addHabit();
+                      }
+                    }}
+                    placeholder="Type New Habit...."
+                    style={{ 
+                      flex: 1, 
+                      background: "transparent", 
+                      border: "none", 
+                      fontSize: "16px", 
+                      color: textCol, 
+                      outline: "none",
+                      padding: "8px 12px",
+                    }}
+                  />
+                  <button 
+                    onClick={addHabit}
+                    disabled={isAdding || !input.trim()}
+                    style={{
+                      background: "#ff9500",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 16px",
+                      fontWeight: 600,
+                      cursor: isAdding || !input.trim() ? "default" : "pointer",
+                      opacity: isAdding || !input.trim() ? 0.5 : 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: "60px"
+                    }}
+                  >
+                    {isAdding ? <Loader2 size={18} className="animate-spin" /> : "Add"}
+                  </button>
                 </div>
 
                 <div style={{ fontSize: 13, color: subCol, textTransform: "uppercase", padding: "0 16px 8px", fontWeight: 500 }}>Manage Habits</div>
@@ -819,17 +996,20 @@ export default function App() {
                             <button 
                               onClick={() => restoreHabit(h)}
                               style={{ 
-                                background: "#ff9500", 
-                                color: "#fff", 
+                                background: dark ? "rgba(255, 149, 0, 0.1)" : "rgba(255, 149, 0, 0.05)", 
+                                color: "#ff9500", 
                                 border: "none", 
-                                padding: "4px 12px", 
-                                borderRadius: 14, 
-                                fontSize: 12, 
+                                padding: "6px 10px", 
+                                borderRadius: "8px", 
+                                fontSize: 13, 
                                 fontWeight: 600, 
-                                cursor: "pointer" 
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px"
                               }}
                             >
-                              Restore
+                              <RotateCcw size={14} /> Restore
                             </button>
                             <button 
                               onClick={() => permanentlyDeleteHabit(h.id)}
