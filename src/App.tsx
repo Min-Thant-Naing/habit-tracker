@@ -206,6 +206,8 @@ const Heatmap: React.FC<HeatmapProps> = ({ habitId, completions, notes, colors, 
                                 fontWeight: 800,
                                 color: done ? "#fff" : (dark ? "#444c56" : "#9ca3af"),
                                 userSelect: "none",
+                                WebkitUserSelect: "none",
+                                WebkitTouchCallout: "none",
                                 touchAction: "manipulation",
                                 opacity: isFuture ? 0.25 : 1,
                                 border: isToday ? `2px solid ${dark ? "#ffc107" : "#ff9500"}` : "none",
@@ -773,7 +775,10 @@ export default function App() {
                 borderRadius: "24px", padding: "24px",
                 zIndex: 1001, boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
                 display: "flex", flexDirection: "column", gap: "20px",
-                maxHeight: "80vh", overflowY: "auto"
+                maxHeight: "80vh", overflowY: "auto",
+                userSelect: "none",
+                WebkitUserSelect: "none",
+                WebkitTouchCallout: "none"
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -835,7 +840,9 @@ export default function App() {
                     width: "100%", minHeight: "100px", borderRadius: "16px",
                     background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
                     border: "none", padding: "16px", color: textCol, fontSize: "15px",
-                    outline: "none", resize: "none", fontFamily: "inherit"
+                    outline: "none", resize: "none", fontFamily: "inherit",
+                    userSelect: "auto",
+                    WebkitUserSelect: "auto"
                   }}
                 />
               </div>
