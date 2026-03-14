@@ -355,7 +355,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const baseColor = dark ? "#0d1117" : "#fbfaf7";
+    const baseColor = dark ? "#0B0E14" : "#fbfaf7";
     // If settings is open, we want the status bar to dim with the backdrop
     const color = isSettingsOpen ? (dark ? "#05070a" : "#939597") : baseColor;
     
